@@ -13,6 +13,59 @@ import {
 } from "@shopify/react-native-skia";
 import RNFS from 'react-native-fs'
 import Slider from "@react-native-community/slider";
+import { useDrawing } from "./app/hooks/useDrawing";
+
+const sendDrawingAsPNG = (socketRef) => (strokes: Stroke[], props) => {
+  if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
+    console.warn("WebSocket not open");
+    return;
+  }
+  const surface = Skia.Surface.MakeOffscreen(width, height);
+  const canvas = surface?.getCanvas();
+
+  // Draw all paths to the offscreen canvas
+  try {
+    const bgPaint = Skia.Paint();
+    bgPaint.setStyle(PaintStyle.Fill);
+    bgPaint.setColor(Skia.Color('black'));
+    canvas?.drawRect({ x: 0, y: 0, width, height }, bgPaint);
+    const realPaths = Array.from(strokes);
+    realPaths.forEach((stroke, i) => {
+      console.log(i, stroke.color, stroke.strokeWidth)
+      const paint = Skia.Paint();
+      paint.setStyle(PaintStyle.Stroke);
+      paint.setStrokeWidth(stroke.strokeWidth);
+      paint.setAntiAlias(true);
+      paint.setColor(Skia.Color(stroke.color));
+      canvas?.drawPath(stroke.path, paint);
+    });
+  }
+  catch (e) { console.log(e) }
+  
+
+  const image = surface?.makeImageSnapshot();
+  const pngBytes = image?.encodeToBytes(ImageFormat.PNG);
+  // const path = `${RNFS.DownloadDirectoryPath}/my-image${Math.random()}.png`;
+  // const base64Image = arrayBufferToBase64(pngBytes.buffer);
+  // try {
+  //   await RNFS.writeFile(path, base64Image, 'base64');
+  // } catch (err) {
+  //   console.error('Error saving image:', err);
+  // }
+  if (pngBytes) {
+    socketRef.current.send(pngBytes.buffer);
+    socketRef.current.send(JSON.stringify({
+      "prompt": props.text,
+      "server_noise": true,
+      "image_format": "png",
+      "t_steps": [props.tStep]
+    }))
+    console.log("🖼️ PNG sent to server");
+  } else {
+    console.warn("⚠️ Failed to encode image");
+  }
+};
+
 
 type Stroke = {
   path: SkPath;
@@ -41,34 +94,18 @@ function arrayBufferToBase64(buffer) {
 }
 
 const PaintDemo = () => {
-  const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [outputImage, setOutputImage] = useState<string | null>(null); // Store server image
   const canvasRef = useCanvasRef(); // Skia Canvas reference
   const socketRef = useRef<WebSocket | null>(null);
-  const currentStroke = useRef<Stroke | null>(null);
-  const [snapshotDataUri, setSnapshotDataUri] = useState<string | null>(null);
+  // const currentStroke = useRef<Stroke | null>(null);
+
   const [selectedColor, setSelectedColor] = useState("blue")
   const [selectedWidth, setSelectedWidth] = useState(5)
   const [tStep, setTStep] = useState(16)
   const [textValue, setTextValue] = useState("dog");
+  const { handleUpdateStrokes, panResponder, strokes, handleUpdateProps } = useDrawing(selectedColor, selectedWidth, textValue, tStep, sendDrawingAsPNG(socketRef))
 
-  const currentProps = useRef({
-    color: selectedColor, 
-    width: selectedWidth,
-    strokes: strokes,
-    text: textValue,
-    tStep: tStep
-  })
 
-  useEffect(() => {
-    currentProps.current = {
-      color: selectedColor, 
-      width: selectedWidth,
-      strokes: strokes,
-      text: textValue,
-      tStep: tStep
-    }
-  }, [selectedColor, selectedWidth, strokes, textValue, tStep]);
 
   // const makeSnapshot = () => {
   //   const surface = Skia.Surface.MakeOffscreen(width, height);
@@ -109,96 +146,6 @@ const PaintDemo = () => {
     canvas?.drawRect({ x: 0, y: 0, width, height }, backgroundPaint);
   }, [])
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onPanResponderGrant: (evt) => {
-        console.log("Finger down on canvas!");
-        const { locationX, locationY } = evt.nativeEvent;
-        const newPath = Skia.Path.Make();
-        newPath.moveTo(locationX, locationY);
-
-        // Create a stroke with the *current* selected color & width.
-        const newStroke: Stroke = {
-          path: newPath,
-          color: currentProps.current.color,    // uses the color in state at this moment
-          strokeWidth: currentProps.current.width,
-        };
-
-        currentStroke.current = newStroke;
-        setStrokes((prev) => [...prev, newStroke]);
-      },
-      onPanResponderMove: (evt) => {
-        if (currentStroke.current) {
-          if (currentStroke.current) {
-            currentStroke.current.color = currentProps.current.color;
-            currentStroke.current.strokeWidth = currentProps.current.width;
-            const { locationX, locationY } = evt.nativeEvent;
-            currentStroke.current.path.lineTo(locationX, locationY);
-            setStrokes((prev) => [...prev]);
-          }
-        }
-      },
-      onPanResponderRelease: () => {
-        currentStroke.current = null;
-        if (socketRef.current) {
-          sendDrawingAsPNG();
-        }
-      },
-    }));
-
-  const sendDrawingAsPNG = async () => {
-    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
-      console.warn("WebSocket not open");
-      return;
-    }
-    // Create offscreen surface
-    const surface = Skia.Surface.MakeOffscreen(width, height);
-    const canvas = surface?.getCanvas();
-
-    // Draw all paths to the offscreen canvas
-    try {
-      const bgPaint = Skia.Paint();
-      bgPaint.setStyle(PaintStyle.Fill);
-      bgPaint.setColor(Skia.Color('black'));
-      canvas?.drawRect({ x: 0, y: 0, width, height }, bgPaint);
-      const realPaths = Array.from(currentProps.current.strokes);
-      realPaths.forEach((stroke, i) => {
-        console.log(i, stroke.color, stroke.strokeWidth)
-        const paint = Skia.Paint();
-        paint.setStyle(PaintStyle.Stroke);
-        paint.setStrokeWidth(stroke.strokeWidth);
-        paint.setAntiAlias(true);
-        paint.setColor(Skia.Color(stroke.color));
-        canvas?.drawPath(stroke.path, paint);
-      });
-
-    }
-    catch (e) { console.log(e) }
-
-    const image = surface?.makeImageSnapshot();
-    const pngBytes = image?.encodeToBytes(ImageFormat.PNG);
-    const path = `${RNFS.DownloadDirectoryPath}/my-image${Math.random()}.png`;
-    const base64Image = arrayBufferToBase64(pngBytes.buffer);
-    try {
-      await RNFS.writeFile(path, base64Image, 'base64');
-    } catch (err) {
-      console.error('Error saving image:', err);
-    }
-    if (pngBytes) {
-      console.log(textValue)
-      socketRef.current.send(pngBytes.buffer);
-      socketRef.current.send(JSON.stringify({
-        "prompt": currentProps.current.text,
-        "server_noise": true,
-        "image_format": "png",
-        "t_steps": [currentProps.current.tStep]
-      }))
-      console.log("🖼️ PNG sent to server");
-    } else {
-      console.warn("⚠️ Failed to encode image");
-    }
-  };
 
   const connectWebSocket = () => {
     socketRef.current = new WebSocket(SOCKET_URL);
@@ -249,10 +196,12 @@ const PaintDemo = () => {
 
   const handleCirclePress = (color) => {
     setSelectedColor(color)
+    handleUpdateProps('color', color)
   };
 
   const handleSizeChange = (newSize) => {
-    setSelectedWidth(newSize);
+    setSelectedWidth(newSize)
+    handleUpdateProps('width', newSize)
   };
 
   return (
@@ -265,7 +214,10 @@ const PaintDemo = () => {
               style={styles.input}
               placeholder="Write here..."
               value={textValue} // Controlled by React state
-              onChangeText={(newText) => setTextValue(newText)} // Update state when user types
+              onChangeText={(newText) => {
+                handleUpdateProps('value', newText)
+                setTextValue(newText)
+              }} // Update state when user types
             />
           </View>
           <View>
@@ -322,7 +274,7 @@ const PaintDemo = () => {
         ))}
       </Canvas>
       {/* <Button title="Send Drawing to Server" onPress={sendDrawingAsPNG} /> */}
-      <Button title="clear" onPress={() => setStrokes([])} />
+      <Button title="clear" onPress={() => handleUpdateStrokes([])} />
       {/* 🔄 Display the image received from the WebSocket */}
       {outputImage && (
         <Image
