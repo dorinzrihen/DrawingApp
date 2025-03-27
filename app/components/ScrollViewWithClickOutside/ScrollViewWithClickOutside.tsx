@@ -1,15 +1,16 @@
-import { Children, useState } from "react"
 import { ScrollView, StyleSheet, View } from "react-native"
+import { useClickOutside } from "react-native-click-outside";
+import { ScrollViewWithClickOutsideProps } from "./ScrollViewWithClickOutside.types";
 
-const ScrollViewWithClickOutside = ({isVisible, Children}) => {
-    const clickOutsideRef = useClickOutside<View>(() => console.log("clicked outside A"))
-    const [dropdownVisible, setDropdownVisible] = useState(false)
+
+const ScrollViewWithClickOutside = ({isVisible, handleClickOutside, children}: ScrollViewWithClickOutsideProps) => {
+    const clickOutsideRef = useClickOutside<ScrollView>(() => handleClickOutside())
 
     return <View>
               {isVisible && (
             <View style={styles.dropdown}>
               <ScrollView contentContainerStyle={{ padding: 8 }} ref={clickOutsideRef}>
-                {Children}
+                {children}
               </ScrollView>
             </View>
           )}
