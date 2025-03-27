@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { TextInput, View, StyleSheet, Text } from "react-native";
+import { CategoryInputProps } from "./CategoryInput.types";
 
-const CategoryInput = ({ handleUpdateProps }) => {
+const CategoryInput = ({ handleUpdateProps }: CategoryInputProps) => {
   const [input, setInput] = useState("dog");
 
   return (

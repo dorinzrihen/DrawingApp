@@ -9,8 +9,8 @@ import CategoryInput from "../CategoryInput/CategoryInput"
 const Toolbar = ({updateSelectedColor, handleUpdateProps}) => {
   return (
     <View style={styles.container}>
-      <ColorPicker updateSelectedColor={updateSelectedColor}/>
       <CategoryInput handleUpdateProps={handleUpdateProps}/>
+      <ColorPicker updateSelectedColor={updateSelectedColor}/>
     </View>
   )
 }
