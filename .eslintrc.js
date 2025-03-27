@@ -16,7 +16,7 @@ module.exports = {
     // Add React Native recommended rules
     'plugin:react-native/all',
     // (Optional) Integrate Prettier to auto-format
-    // 'plugin:prettier/recommended',
+    'plugin:prettier/recommended',
   ],
   plugins: [
     'react',

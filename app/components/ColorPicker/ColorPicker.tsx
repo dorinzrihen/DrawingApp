@@ -4,13 +4,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   Text,
-  ScrollView,
 } from "react-native"
 import { colorFamilies } from "./ColorPickerLib"
-import { useClickOutside } from "react-native-click-outside";
+import {ScrollViewWithClickOutside} from "../ScrollViewWithClickOutside";
 
 const ColorFamiliesPalette = () => {
-  const clickOutsideRef = useClickOutside<View>(() => console.log('clicked outside A'));
   const [dropdownVisible, setDropdownVisible] = useState(false)
   const [selectedColor, setSelectedColor] = useState("#C53030") // example default color
 
@@ -34,7 +32,7 @@ const ColorFamiliesPalette = () => {
       {/* Dropdown that shows multiple color families */}
       {dropdownVisible && (
         <View style={styles.dropdown}>
-          <ScrollView contentContainerStyle={{ padding: 8 }} ref={clickOutsideRef}>
+          <ScrollViewWithClickOutside isVisible={dropdownVisible} handleClickOutside={() => setDropdownVisible(false)}>
             {colorFamilies.map((family) => (
               <View key={family.name} style={styles.familyContainer}>
                 <Text style={styles.familyName}>{family.name}</Text>
@@ -49,7 +47,8 @@ const ColorFamiliesPalette = () => {
                 </View>
               </View>
             ))}
-          </ScrollView>
+          </ScrollViewWithClickOutside>
+
         </View>
       )}
     </View>

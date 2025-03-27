@@ -7,13 +7,13 @@ const ScrollViewWithClickOutside = ({isVisible, handleClickOutside, children}: S
     const clickOutsideRef = useClickOutside<ScrollView>(() => handleClickOutside())
 
     return <View>
-              {isVisible && (
-            <View style={styles.dropdown}>
-              <ScrollView contentContainerStyle={{ padding: 8 }} ref={clickOutsideRef}>
-                {children}
-              </ScrollView>
-            </View>
-          )}
+      {isVisible && (
+        <View style={styles.dropdown}>
+          <ScrollView contentContainerStyle={{ padding: 8 }} ref={clickOutsideRef}>
+            {children}
+          </ScrollView>
+        </View>
+        )}
     </View>
 
 }
@@ -34,3 +34,5 @@ const styles = StyleSheet.create({
     zIndex: 999,
   },
 })
+
+export default ScrollViewWithClickOutside;
